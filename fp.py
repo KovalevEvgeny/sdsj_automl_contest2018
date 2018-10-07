@@ -37,14 +37,14 @@ def is_binary(X):
   X: pd.Series
   return: bool
   '''
-    return len(X.unique()) == 2
+    return len(X.dropna().unique()) == 2
 
 def is_categorical(X):
     '''
   X: pd.Series
   return: bool
   '''
-    return len(X.unique()) > 2 and len(X.unique()) <= 15 # better to compare with global variable 
+    return len(X..dropna().unique()) > 2 and len(X.dropna().unique()) <= 15 # better to compare with global variable 
 
 def get_types(df):
     '''
@@ -85,7 +85,8 @@ def drop_irrelevant(df):
     irrelevant_columns = [
       col_name
       for col_name in df.columns
-      if df[col_name].nunique() == 1
+      if df[col_name].dropna().nunique() == 0
+      or df[col_name].dropna().nunique() == 1
       or df[col_name].isnull().sum() / len(df) >= 0.98
       ]
     return df.drop(irrelevant_columns, axis=1)
