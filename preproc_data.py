@@ -25,11 +25,14 @@ class Parse():
         self.col_typ = col_typ
 
     def rename_cols(self):
+        #временный костыль
+        self.col_typ[list(self.col_typ.keys())[-1]] = 'target'
         self.data.rename_axis(self.col_typ, axis='columns', inplace=True)
         
     def save_csv(self, name):
         self.data.to_csv(name)
-        
+
+    
         
         
 

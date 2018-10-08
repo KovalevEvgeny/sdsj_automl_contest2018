@@ -167,7 +167,7 @@ def load_data(filename, datatype='train', cfg={}):
 
     # read dataset
     df = pd.read_csv(filename, low_memory=False)
-    line_id = []
+    line_id = df['line_id'].values
     if datatype == 'train':
         y = df.target
         df = df.drop('target', axis=1)
@@ -176,35 +176,35 @@ def load_data(filename, datatype='train', cfg={}):
     else:
         y = None
     print('Dataset read, shape {}'.format(df.shape))
-    print(df.columns)
+    #print(df.columns)
 
     # features from datetime
     df = transform_datetime_features(df)
     print('Transform datetime done, shape {}'.format(df.shape))
-    print(df.columns)
+    #print(df.columns)
     
     # drop irrelevant columns
     df = drop_irrelevant(df)
     print('Irrelevant columns dropped, shape {}'.format(df.shape))
-    print(df.columns)
+    #print(df.columns)
     
     column_types = get_types(df)
     
     # missing values
     df = imputing_missing_values(df, column_types)
     print('Missing values imputed, shape {}'.format(df.shape))
-    print(df.columns)
+    #print(df.columns)
     # scaling
     df = scaling(df, column_types)
     print('Scaling done, shape {}'.format(df.shape))
-    print(df.columns)
+    #print(df.columns)
     # encoding
     if datatype == 'train':
         df, model_config['le_cols'] = encoding(df, column_types, le_cols={})
     else:
         df, _ = encoding(df, column_types, le_cols=model_config['le_cols'])
     print('Encoding done, shape {}'.format(df.shape))
-    print(df.columns)
+    #print(df.columns)
 
     return df.values.astype(np.float16) if 'is_big' in model_config else df, y, model_config, line_id
 
