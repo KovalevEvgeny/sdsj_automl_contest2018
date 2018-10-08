@@ -63,15 +63,16 @@ def get_types(df):
                   if col_name.startswith(('number','string'))]
   
     for col in num_str_cols:
-        if is_binary(df[col]):
+        if (col.find('datetime') != -1 and col.find('year') == -1 ):
+            cols_type['other'].append(col)            
+        elif is_binary(df[col]):
             cols_type['binary'].append(col)
         elif is_categorical(df[col]):
             cols_type['categorical'].append(col)
         else:
-            if col.startswith('number') and col.find('datetime') == -1:
+            if col.startswith('number'):
                 cols_type['numeric'].append(col)
-        
-            elif col.startswith('string') or col.find('datetime') == -1:
+            elif col.startswith('string'):
                 print('Warning: maybe text or category (exceeded fixed limit %i, found %i)' % (15, len(df[col])))
                 cols_type['other'].append(col)
             else:
@@ -93,7 +94,7 @@ def drop_irrelevant(df):
 
 # after get_types
 def imputing_missing_values(df, column_types, cat_method='mode', num_method='mean'):
-    non_numeric_columns = column_types['binary'] + column_types['categorical'] + column_types['other']
+    non_numeric_columns = column_types['binary'] + column_types['categorical'] #+ column_types['other']
     df_non_numeric = df.loc[:, non_numeric_columns]
     if cat_method == 'mode':
         df_non_numeric.fillna(value=df_non_numeric.mode().iloc[0], inplace=True)
@@ -166,7 +167,7 @@ def load_data(filename, datatype='train', cfg={}):
 
     # read dataset
     df = pd.read_csv(filename, low_memory=False)
-    line_id = df['line_id'].values
+    line_id = []
     if datatype == 'train':
         y = df.target
         df = df.drop('target', axis=1)
@@ -175,31 +176,35 @@ def load_data(filename, datatype='train', cfg={}):
     else:
         y = None
     print('Dataset read, shape {}'.format(df.shape))
+    print(df.columns)
 
     # features from datetime
     df = transform_datetime_features(df)
     print('Transform datetime done, shape {}'.format(df.shape))
+    print(df.columns)
     
     # drop irrelevant columns
     df = drop_irrelevant(df)
     print('Irrelevant columns dropped, shape {}'.format(df.shape))
+    print(df.columns)
     
     column_types = get_types(df)
     
     # missing values
     df = imputing_missing_values(df, column_types)
     print('Missing values imputed, shape {}'.format(df.shape))
-    
+    print(df.columns)
     # scaling
     df = scaling(df, column_types)
     print('Scaling done, shape {}'.format(df.shape))
-    
+    print(df.columns)
     # encoding
     if datatype == 'train':
         df, model_config['le_cols'] = encoding(df, column_types, le_cols={})
     else:
         df, _ = encoding(df, column_types, le_cols=model_config['le_cols'])
     print('Encoding done, shape {}'.format(df.shape))
+    print(df.columns)
 
     return df.values.astype(np.float16) if 'is_big' in model_config else df, y, model_config, line_id
 
