@@ -44,7 +44,7 @@ def is_categorical(X):
   X: pd.Series
   return: bool
   '''
-    return len(X..dropna().unique()) > 2 and len(X.dropna().unique()) <= 15 # better to compare with global variable 
+    return len(X.dropna().unique()) > 2 and len(X.dropna().unique()) <= 15 # better to compare with global variable 
 
 def get_types(df):
     '''
