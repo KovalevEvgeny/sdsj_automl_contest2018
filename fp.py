@@ -68,11 +68,11 @@ def get_types(df):
         elif is_categorical(df[col]):
             cols_type['categorical'].append(col)
         else:
-            if col.startswith('number'):
+            if col.startswith('number') and col.find('datetime') == -1:
                 cols_type['numeric'].append(col)
         
-            elif col.startswith('string'):
-                print('Warning: maybe text or category (exceeded fixed limit %i)' % 15)
+            elif col.startswith('string') or col.find('datetime') == -1:
+                print('Warning: maybe text or category (exceeded fixed limit %i, found %i)' % (15, len(df[col])))
                 cols_type['other'].append(col)
             else:
                 pass        
