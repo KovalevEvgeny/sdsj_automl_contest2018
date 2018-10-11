@@ -131,19 +131,19 @@ def scaling(df, column_types):
 # after get_types
 def encoding(df, column_types, method='labels', le_cols={}):
     categorical_columns = column_types['binary'] + column_types['categorical']
-    df_categorical = df.loc[:, categorical_columns].applymap(str)
+    df_categorical = df.loc[:, categorical_columns]
     if method == 'labels':
         # train
         if not le_cols:
             for col in categorical_columns:
                 le = LabelEncoder()
-                df_categorical[col] = le.fit_transform(df[col].astype(str))
+                df_categorical[col] = le.fit_transform(df[col])
                 # values seen by LE
                 le_dict = dict(zip(le.classes_, le.transform(le.classes_)))
                 le_cols[col] = (le, le_dict)
         # test
         else:
-            for col in categorical_columns:
+            for col in le_cols.keys():
                 le, le_dict = le_cols[col]
                 # handling unseen values
                 for value in df_categorical[col].unique():
@@ -191,7 +191,11 @@ def load_data(filename, datatype='train', cfg={}):
     print('Irrelevant columns dropped, shape {}'.format(df.shape))
     #print(df.columns)
     
-    column_types = get_types(df)
+    if datatype == 'train':
+        column_types = get_types(df)
+        model_config['column_types'] = column_types
+    else:
+        column_types = model_config['column_types']
     
     # missing values
     df = imputing_missing_values(df, column_types)
