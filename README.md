@@ -4,6 +4,8 @@
 * Fix bug (no predict error)
 * Improve baseline methods
   * NaN + const -> 0/1
+  * LE float/int ?
+  * string unique > 15 ?
   * drop identic columns
   * drop correlations? 
   * mean target encoding?  
