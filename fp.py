@@ -74,7 +74,7 @@ def get_types(df):
                 cols_type['numeric'].append(col)
             elif col.startswith('string'):
                 print('Warning: maybe text or category (exceeded fixed limit %i, found %i)' % (15, len(df[col])))
-                cols_type['other'].append(col)
+                cols_type['categorical'].append(col) # WARN
             else:
                 pass        
 
@@ -94,7 +94,7 @@ def drop_irrelevant(df):
 
 # after get_types
 def imputing_missing_values(df, column_types, cat_method='mode', num_method='mean'):
-    non_numeric_columns = column_types['binary'] + column_types['categorical'] #+ column_types['other']
+    non_numeric_columns = column_types['binary'] + column_types['categorical'] + column_types['other']
     df_non_numeric = df.loc[:, non_numeric_columns]
     if cat_method == 'mode':
         df_non_numeric.fillna(value=df_non_numeric.mode().iloc[0], inplace=True)
@@ -110,17 +110,17 @@ def imputing_missing_values(df, column_types, cat_method='mode', num_method='mea
     elif num_method == 'other':
         print('not yet developed')
   
-    other_columns = column_types['other']
-    df_other = df.loc[:, other_columns]
+    #other_columns = column_types['other']
+    #df_other = df.loc[:, other_columns]
   
-    df_new = pd.concat([df_non_numeric, df_numeric, df_other], axis=1)
+    df_new = pd.concat([df_non_numeric, df_numeric], axis=1)
     return df_new
 
 # after get_types
 def scaling(df, column_types):
     numeric_columns = column_types['numeric']
     df_numeric = df.loc[:, numeric_columns]
-    df_numeric = (df_numeric - df_numeric.mean(0)) / df_numeric.std(0)
+    df_numeric = (df_numeric - df_numeric.mean(0)) / (df_numeric.std(0) + 1e-10)
   
     other_columns = column_types['binary'] + column_types['categorical'] + column_types['other']
     df_other = df.loc[:, other_columns]
@@ -171,10 +171,10 @@ def load_data(filename, datatype='train', cfg={}):
     if datatype == 'train':
         y = df.target
         df = df.drop('target', axis=1)
-        if df.memory_usage().sum() > 1000000000000000:
+        if df.memory_usage().sum() > 500 * 1024 * 1024:
             model_config['is_big'] = True
     else:
-        y = None
+        y = None       
     print('Dataset read, shape {}'.format(df.shape))
     #print(df.columns)
 
@@ -184,7 +184,10 @@ def load_data(filename, datatype='train', cfg={}):
     #print(df.columns)
     
     # drop irrelevant columns
-    df = drop_irrelevant(df)
+    if datatype == 'train':
+        df = drop_irrelevant(df)
+    else:
+        df = df[model_config['used_columns']]
     print('Irrelevant columns dropped, shape {}'.format(df.shape))
     #print(df.columns)
     
@@ -205,6 +208,13 @@ def load_data(filename, datatype='train', cfg={}):
         df, _ = encoding(df, column_types, le_cols=model_config['le_cols'])
     print('Encoding done, shape {}'.format(df.shape))
     #print(df.columns)
+    
+    
+    # filtering columns
+    if datatype == 'train':
+        model_config['used_columns'] = df.columns
+        print('Used {} columns'.format(len(df.columns)))
+    
 
     return df.values.astype(np.float16) if 'is_big' in model_config else df, y, model_config, line_id
 
