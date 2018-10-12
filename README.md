@@ -2,7 +2,7 @@
 
 ### To-Do list:
 * Optimization (no predict time-out error)
-  * do encoding and scaling more logicaly
+  * do encoding and scaling more logically
   * sparse-matrix
 * Improve baseline methods
   * saving scaler!!!
