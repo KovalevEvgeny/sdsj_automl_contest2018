@@ -76,9 +76,10 @@ def get_types(df):
                 print('Warning: maybe text or category (exceeded fixed limit %i, found %i)' % (15, len(df[col])))
                 cols_type['categorical'].append(col) # WARN
             else:
-                pass        
+                pass
 
     return cols_type    
+
 
 def drop_irrelevant(df):
   # constant
@@ -179,7 +180,6 @@ def load_data(filename, datatype='train', cfg={}):
     df_numeric = df.loc[:, column_types['numeric']]
     df_binary_categorical = df.loc[:, column_types['binary'] + column_types['categorical']]
     df_other = df.loc[:, column_types['other']]
-    del df
     
     # missing values
     df_numeric = imputing_missing_values(df_numeric, fill_type='num')
