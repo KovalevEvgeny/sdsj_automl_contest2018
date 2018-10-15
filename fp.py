@@ -29,7 +29,7 @@ def transform_datetime_features(df):
         df['number_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
         df['number_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
         df['number_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
-    return df
+    return df.drop(datetime_columns, axis=1)
 
 # type division
 def is_binary(X):
@@ -96,26 +96,22 @@ def drop_irrelevant(df):
 def imputing_missing_values(df, fill_type, cat_method='mode', num_method='mean'):
     if fill_type == 'cat':
         if cat_method == 'mode':
-            df.fillna(value=df.mode().iloc[0], inplace=True)
+            return df.fillna(value=df.mode().iloc[0])
         elif cat_method == 'nan':
             print('not yet developed')
     elif fill_type == 'num':
         if num_method == 'mean':
-            df.fillna(value=df.mean(), inplace=True)
+            return df.fillna(value=df.mean())
         elif num_method == 'median':
-            df.fillna(value=df.median(), inplace=True)
+            return df.fillna(value=df.median())
         elif num_method == 'other':
             print('not yet developed')
 
     #other_columns = column_types['other']
     #df_other = df.loc[:, other_columns]
-
-    return df
-
 # after get_types
 def scaling(df):
-    df = (df - df.mean(0)) / (df.std(0) + 1e-10)
-    return df
+    return (df - df.mean(0)) / (df.std(0) + 1e-10)
 
 # after get_types
 def encoding(df, method='labels', le_cols={}):
@@ -183,6 +179,7 @@ def load_data(filename, datatype='train', cfg={}):
     df_numeric = df.loc[:, column_types['numeric']]
     df_binary_categorical = df.loc[:, column_types['binary'] + column_types['categorical']]
     df_other = df.loc[:, column_types['other']]
+    del df
     
     # missing values
     df_numeric = imputing_missing_values(df_numeric, fill_type='num')
@@ -209,7 +206,8 @@ def load_data(filename, datatype='train', cfg={}):
     # filtering columns
     if datatype == 'train':
         model_config['used_columns'] = df.columns
-        print('Used {} columns'.format(len(df.columns)))
+    
+    print('Used {} columns'.format(len(df.columns)))
     
 
     return df.values.astype(np.float16) if 'is_big' in model_config else df, y, model_config, line_id
