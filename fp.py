@@ -145,7 +145,7 @@ def encoding(df, method='labels', le_cols={}):
                 #for value in df[col].unique():
                 #    if value not in le_dict.keys():
                 #        le_dict[value] = -1
-                diff = list(set(df[col]) - set(le_dict.keys())
+                diff = list(set(df[col]) - set(le_dict.keys()))
                 if not diff:
                     le_dict.update({key:-1 for key in diff})
                 #df_categorical[col] = le.transform(df[col].astype(str))
