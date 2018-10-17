@@ -1,5 +1,4 @@
 import datetime
-import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
 
@@ -132,11 +131,12 @@ def encoding(df, method='labels', le_cols={}):
         # train
         if not le_cols:
             for col in df.columns:
-                le = LabelEncoder()
-                df[col] = le.fit_transform(df[col])
-                # values seen by LE
-                le_dict = dict(zip(le.classes_, le.transform(le.classes_)))
-                le_cols[col] = (le, le_dict)
+                if col.startswith('string'):
+                    le = LabelEncoder()
+                    df[col] = le.fit_transform(df[col])
+                    # values seen by LE
+                    le_dict = dict(zip(le.classes_, le.transform(le.classes_)))
+                    le_cols[col] = (le, le_dict)
         # test
         else:
             for col in le_cols.keys():
@@ -204,11 +204,14 @@ def load_data(filename, datatype='train', cfg={}):
     #print(df.columns)
     
     # scaling
-    if datatype == 'train':
-        df.loc[:, numeric], model_config['scalers'] = scaling(df.loc[:, numeric], scalers={'method':'minmax'})
+    if numeric:
+        if datatype == 'train':
+            df.loc[:, numeric], model_config['scalers'] = scaling(df.loc[:, numeric], scalers={'method':'minmax'})
+        else:
+            df.loc[:, numeric], _ = scaling(df.loc[:, numeric], scalers=model_config['scalers'])
+        print('Scaling done')
     else:
-        df.loc[:, numeric], _ = scaling(df.loc[:, numeric], scalers=model_config['scalers'])
-    print('Scaling done')
+        print('Nothing to scale')
     #print(df.columns)
     
     # encoding
