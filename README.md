@@ -1,5 +1,7 @@
 # sdsj_contest
 
+https://github.com/ilyenkov/sdsj-2018
+
 ### To-Do list:
 * Optimization (no predict time-out error)
   * do encoding and scaling more logically
