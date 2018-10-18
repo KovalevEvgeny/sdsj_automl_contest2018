@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import pickle
 import time
+from catboost import CatBoostRegressor, CatBoostClassifier
 from fp import load_data
 
 # use this to stop the algorithm before time limit exceeds
@@ -24,15 +25,16 @@ if __name__ == '__main__':
 
     X_test, _, _, line_id = load_data(args.test_csv, datatype='test', cfg=model_config)
 
-    model = model_config['model']
-    #df = pd.read_csv(args.test_csv, usecols=['line_id',])
-    #print(args.test_csv)
-    #df = pd.read_csv(args.test_csv)
+    #model = model_config['model']
+
     if model_config['mode'] == 'regression':
+        model = CatBoostRegressor()
+        model.load_model(os.path.join(args.model_dir, 'model.catboost'))
         prediction = model.predict(X_test)
     elif model_config['mode'] == 'classification':
-        #df['prediction'] = model.predict_proba(X_scaled)[:, 1]
-        prediction = model.predict(X_test)
+        model = CatBoostClassifier()
+        model.load_model(os.path.join(args.model_dir, 'model.catboost'))
+        prediction = model.predict_proba(X_test)[:, 1]
 
     result = pd.DataFrame({'line_id': line_id, 'prediction': prediction})
     result.to_csv(args.prediction_csv, index=False)
