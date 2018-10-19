@@ -1,6 +1,7 @@
 import datetime
+import numpy as np
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 start_date = datetime.datetime.strptime('2010-01-01', '%Y-%m-%d')
 
@@ -23,27 +24,23 @@ def transform_datetime_features(df):
     ]
     for col_name in datetime_columns:
         df[col_name] = df[col_name].apply(lambda x: parse_dt(x))
-        df['number_year_{}'.format(col_name)] = df[col_name].apply(lambda x: x.year)
-        df['number_weekday_{}'.format(col_name)] = df[col_name].apply(lambda x: x.weekday())
-        df['number_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
-        df['number_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
-        df['number_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
+        df['number_datetime_year_{}'.format(col_name)] = df[col_name].apply(lambda x: x.year)
+        df['number_datetime_weekday_{}'.format(col_name)] = df[col_name].apply(lambda x: x.weekday())
+        df['number_datetime_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
+        df['number_datetime_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
+        df['number_datetime_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
+        df['number_datetime_minute_{}'.format(col_name)] = df[col_name].apply(lambda x: x.minute)
+        df['number_datetime_second_{}'.format(col_name)] = df[col_name].apply(lambda x: x.second)
     return df.drop(datetime_columns, axis=1)
 
 # type division
-def is_binary(X):
-    '''
-  X: pd.Series
-  return: bool
-  '''
-    return len(X.dropna().unique()) == 2
-
 def is_categorical(X):
     '''
   X: pd.Series
   return: bool
   '''
-    return len(X.dropna().unique()) > 2 and len(X.dropna().unique()) <= 15 # better to compare with global variable 
+    return len(X.dropna().unique()) <= 15 # better to compare with global variable 
+
 
 def get_types(df):
     '''
@@ -53,30 +50,23 @@ def get_types(df):
   '''
     cols_type = {
       'numeric' : [],
-      'binary' : [],
-      'categorical' : [],
-      'other' : []
+      'categorical_number' : [],
+      'categorical_string' : [],
+      'must_be_empty': []
   }
   
-    num_str_cols = [col_name for col_name in df.columns 
-                  if col_name.startswith(('number','string'))]
-  
-    for col in num_str_cols:
-        if (col.find('datetime') != -1 and col.find('year') == -1 ):
-            cols_type['other'].append(col)            
-        elif is_binary(df[col]):
-            cols_type['binary'].append(col)
-        elif is_categorical(df[col]):
-            cols_type['categorical'].append(col)
-        else:
-            if col.startswith('number'):
-                cols_type['numeric'].append(col)
-            elif col.startswith('string'):
-                print('Warning: maybe text or category (exceeded fixed limit %i, found %i)' % (15, len(df[col])))
-                cols_type['categorical'].append(col) # WARN
+    for col in df.columns:
+        if col.startswith('string'):
+            cols_type['categorical_string'].append(col)
+        elif col.startswith('number'):
+            if is_categorical(df[col]) or col.startswith('number_datetime'):
+                cols_type['categorical_number'].append(col)
             else:
-                pass        
-
+                cols_type['numeric'].append(col)
+        else:
+            # I cannot get into this "else" I assume
+            cols_type['must_be_empty'].append(col)
+    
     return cols_type    
 
 
@@ -125,62 +115,56 @@ def scaling(df, scalers):
     
     return df, scalers
 
-# after get_types
-def encoding(df, method='labels', le_cols={}):
-    if method == 'labels':
-        # train
-        if not le_cols:
-            for col in df.columns:
-                if col.startswith('string'):
-                    le = LabelEncoder()
-                    df[col] = le.fit_transform(df[col])
-                    # values seen by LE
-                    le_dict = dict(zip(le.classes_, le.transform(le.classes_)))
-                    le_cols[col] = (le, le_dict)
-        # test
-        else:
-            for col in le_cols.keys():
-                le, le_dict = le_cols[col]
-                # handling unseen values
-                #for value in df[col].unique():
-                #    if value not in le_dict.keys():
-                #        le_dict[value] = -1
-                diff = list(set(df[col]) - set(le_dict.keys()))
-                if not diff:
-                    le_dict.update({key:-1 for key in diff})
-                #df_categorical[col] = le.transform(df[col].astype(str))
-                df[col] = df[col].apply(lambda x: le_dict.get(x))
-    elif method == 'one-hot':
-        #df_categorical = pd.get_dummies(df_cat.applymap(str))
-        print('not yet developed')
-
-    return df, le_cols
 
 def load_data(filename, datatype='train', cfg={}):
 
     model_config = cfg
 
     # read dataset
-    df = pd.read_csv(filename, low_memory=False)
+    df = pd.read_csv(filename)
     line_id = df['line_id'].values
     if datatype == 'train':
+        # subsampling for huge df
+        if df.memory_usage().sum() > 500 * 1024 * 1024:
+            df = df.sample(frac=0.25, random_state=13)
         y = df.target
         df = df.drop('target', axis=1)
-        if df.memory_usage().sum() > 500 * 1024 * 1024:
-            model_config['is_big'] = True
     else:
         y = None       
     print('Dataset read, shape {}'.format(df.shape))
     #print(df.columns)
 
+    
     # features from datetime
     df = transform_datetime_features(df)
     print('Transform datetime done, shape {}'.format(df.shape))
     #print(df.columns)
     
+    
+    # downcasting types
+    print(df.info(verbose=False, memory_usage='deep'))
+    print('Downcasting started')
+    df.loc[:, df.dtypes == np.int64] = df.loc[:, df.dtypes == np.int64].apply(pd.to_numeric, downcast='unsigned')
+    df.loc[:, df.dtypes == np.float64] = df.loc[:, df.dtypes == np.float64].apply(pd.to_numeric, downcast='float')
+    
+    obj_columns = df.select_dtypes(include=['object'])
+    for col in obj_columns:
+        num_unique_values = len(df[col].unique())
+        num_total_values = len(df[col])
+        if num_unique_values / num_total_values < 0.5:
+            df.loc[:, col] = df[col].astype('category')
+        else:
+            df.loc[:, col] = df[col]
+    print(df.info(verbose=False, memory_usage='deep'))
+    print('Downcasting finished')
+    
+    
+    
     # drop irrelevant columns
     if datatype == 'train':
         df = drop_irrelevant(df)
+        # drop id_... and line_id
+        df = df[df.columns.drop(list(df.filter(regex='id')))]
     else:
         df = df[model_config['used_columns']]
     print('Irrelevant columns dropped, shape {}'.format(df.shape))
@@ -192,17 +176,20 @@ def load_data(filename, datatype='train', cfg={}):
     else:
         column_types = model_config['column_types']
     
-    numeric = column_types['numeric'] #float16
-    binary_categorical = column_types['binary'] + column_types['categorical'] #uint8
-    other = column_types['other']
+    numeric = column_types['numeric']
+    categorical_string = column_types['categorical_string']
+    categorical_number = column_types['categorical_number']
+    
+    categorical_string_indices = np.nonzero(df.columns.isin(categorical_string))[0]
+    model_config['cat_features'] = categorical_string_indices
     
     # missing values
     df.loc[:, numeric] = imputing_missing_values(df.loc[:, numeric], fill_type='num')
-    df.loc[:, binary_categorical] = imputing_missing_values(df.loc[:, binary_categorical], fill_type='cat')
-    df.loc[:, other] = imputing_missing_values(df.loc[:, other], fill_type='cat')
+    df.loc[:, categorical_string + categorical_number] = imputing_missing_values(df.loc[:, categorical_string + categorical_number], fill_type='cat')
     print('Missing values imputed')
     #print(df.columns)
     
+    '''
     # scaling
     if numeric:
         if datatype == 'train':
@@ -213,19 +200,8 @@ def load_data(filename, datatype='train', cfg={}):
     else:
         print('Nothing to scale')
     #print(df.columns)
-    
-    # encoding
-    if datatype == 'train':
-        df.loc[:, binary_categorical], model_config['le_cols'] = encoding(df.loc[:, binary_categorical], le_cols={})
-    else:
-        df.loc[:, binary_categorical], _ = encoding(df.loc[:, binary_categorical], le_cols=model_config['le_cols'])
-    print('Encoding done')
-    #print(df.columns)
-    
-    
-    # downcasting types
-    df.loc[:, numeric] = df.loc[:, numeric].apply(pd.to_numeric, downcast='float')
-    df.loc[:, binary_categorical] =  df.loc[:, binary_categorical].apply(pd.to_numeric, downcast='unsigned')
+    '''
+
     
     #df = pd.concat([df_numeric, df_binary_categorical, df_other], axis=1)
     

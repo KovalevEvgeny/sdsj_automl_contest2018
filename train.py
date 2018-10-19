@@ -58,7 +58,8 @@ if __name__ == '__main__':
     iter_time = 0 # last time for one iteration
     # if TIME_LIMIT > 300:
         #-240
-    while iter_time < TIME_LIMIT - (time.time() - start_time) - 60:
+    
+    while iter_time < TIME_LIMIT - (time.time() - start_time) - 120:
         start_iter = time.time()
         total_iter = total_iter + 100
         model_params["iterations"] = total_iter
@@ -70,7 +71,7 @@ if __name__ == '__main__':
             model_params["scale_pos_weight"] = pos_weight
             model = CatBoostClassifier(**model_params)
 
-        model.fit(X_train, y_train,
+        model.fit(X_train, y_train, cat_features=model_config['cat_features'],
                   logging_level='Silent',
                   use_best_model=True,
                   # early_stopping_rounds=10,
