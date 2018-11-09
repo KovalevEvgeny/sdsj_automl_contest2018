@@ -22,4 +22,4 @@ https://github.com/ilyenkov/sdsj-2018
 
 - Catboost => No need to encode categorical string features
 - flexible timing for training
-- is dataset is too big, use more strict timing for training
+- if dataset is too big, use more strict timing for training
