@@ -59,7 +59,12 @@ if __name__ == '__main__':
     # if TIME_LIMIT > 300:
         #-240
     
-    while iter_time < TIME_LIMIT - (time.time() - start_time) - 120:
+    if model_config['is_big']:
+        tl = 120
+    else:
+        tl = 20
+    
+    while iter_time < TIME_LIMIT - (time.time() - start_time) - tl:
         start_iter = time.time()
         total_iter = total_iter + 100
         model_params["iterations"] = total_iter

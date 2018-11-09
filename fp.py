@@ -1,36 +1,24 @@
-import datetime
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
-start_date = datetime.datetime.strptime('2010-01-01', '%Y-%m-%d')
 
 # datetime
-def parse_dt(x):
-    if not isinstance(x, str):
-        return start_date
-    elif len(x) == len('2010-01-01'):
-        return datetime.datetime.strptime(x, '%Y-%m-%d')
-    elif len(x) == len('2010-01-01 10:10:10'):
-        return datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    else:
-        return start_date
 
-def transform_datetime_features(df):
+def transform_datetime_features(df, datatype):
     datetime_columns = [
         col_name
         for col_name in df.columns
         if col_name.startswith('datetime')
     ]
     for col_name in datetime_columns:
-        df[col_name] = df[col_name].apply(lambda x: parse_dt(x))
-        df['number_datetime_year_{}'.format(col_name)] = df[col_name].apply(lambda x: x.year)
-        df['number_datetime_weekday_{}'.format(col_name)] = df[col_name].apply(lambda x: x.weekday())
-        df['number_datetime_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
-        df['number_datetime_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
-        df['number_datetime_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
-        df['number_datetime_minute_{}'.format(col_name)] = df[col_name].apply(lambda x: x.minute)
-        df['number_datetime_second_{}'.format(col_name)] = df[col_name].apply(lambda x: x.second)
+        if datatype == 'train':
+            df[col_name] = pd.to_datetime(df[col_name])
+        df['number_datetime_year_{}'.format(col_name)] = df[col_name].dt.year
+        df['number_datetime_weekday_{}'.format(col_name)] = df[col_name].dt.weekday
+        df['number_datetime_month_{}'.format(col_name)] = df[col_name].dt.month
+        df['number_datetime_day_{}'.format(col_name)] = df[col_name].dt.day
+        df['number_datetime_hour_{}'.format(col_name)] = df[col_name].dt.hour
+        df['number_datetime_minute_{}'.format(col_name)] = df[col_name].dt.minute
+        df['number_datetime_second_{}'.format(col_name)] = df[col_name].dt.second
     return df.drop(datetime_columns, axis=1)
 
 # type division
@@ -67,7 +55,7 @@ def get_types(df):
             # I cannot get into this "else" I assume
             cols_type['must_be_empty'].append(col)
     
-    return cols_type    
+    return cols_type
 
 
 def drop_irrelevant(df):
@@ -97,49 +85,49 @@ def imputing_missing_values(df, fill_type, cat_method='mode', num_method='mean')
         elif num_method == 'other':
             print('not yet developed')
 
-    #other_columns = column_types['other']
-    #df_other = df.loc[:, other_columns]
-# after get_types
-def scaling(df, scalers):
-    if len(scalers) == 1: #then it is train
-        if scalers['method'] == 'minmax':
-            sc = MinMaxScaler()
-            df = sc.fit_transform(df)
-            scalers['sc'] = sc
-        elif scalers['method'] == 'std':
-            sc = StandardScaler()
-            df = sc.fit_transform(df)
-            scalers['sc'] = sc
-    else:
-        df = scalers['sc'].transform(df)       
-    
-    return df, scalers
-
 
 def load_data(filename, datatype='train', cfg={}):
 
     model_config = cfg
 
     # read dataset
-    df = pd.read_csv(filename)
+    if datatype == 'train':
+        df = pd.read_csv(filename, low_memory=False)
+    else:
+        df = pd.read_csv(filename, usecols=model_config['usecols'], dtype=model_config['dtype'],
+                         parse_dates=model_config['parse_dates'])
     line_id = df['line_id'].values
     if datatype == 'train':
         # subsampling for huge df
         if df.memory_usage().sum() > 500 * 1024 * 1024:
             df = df.sample(frac=0.25, random_state=13)
+            model_config['is_big'] = True
+        else:
+            model_config['is_big'] = False
         y = df.target
         df = df.drop('target', axis=1)
     else:
-        y = None       
+        y = None
     print('Dataset read, shape {}'.format(df.shape))
     #print(df.columns)
-
+    
+    if datatype == 'train':
+        model_config['parse_dates'] = [
+            col_name
+            for col_name in df.columns
+            if col_name.startswith('datetime')
+        ]
+        model_config['usecols'] = [
+            col_name
+            for col_name in df.columns
+            if (col_name.startswith('datetime') or col_name.startswith('id'))
+        ]
+        model_config['usecols'].append('line_id')
     
     # features from datetime
-    df = transform_datetime_features(df)
+    df = transform_datetime_features(df, datatype)
     print('Transform datetime done, shape {}'.format(df.shape))
     #print(df.columns)
-    
     
     # downcasting types
     print(df.info(verbose=False, memory_usage='deep'))
@@ -157,7 +145,6 @@ def load_data(filename, datatype='train', cfg={}):
             df.loc[:, col] = df[col]
     print(df.info(verbose=False, memory_usage='deep'))
     print('Downcasting finished')
-    
     
     
     # drop irrelevant columns
@@ -187,29 +174,19 @@ def load_data(filename, datatype='train', cfg={}):
     df.loc[:, numeric] = imputing_missing_values(df.loc[:, numeric], fill_type='num')
     df.loc[:, categorical_string + categorical_number] = imputing_missing_values(df.loc[:, categorical_string + categorical_number], fill_type='cat')
     print('Missing values imputed')
-    #print(df.columns)
-    
-    '''
-    # scaling
-    if numeric:
-        if datatype == 'train':
-            df.loc[:, numeric], model_config['scalers'] = scaling(df.loc[:, numeric], scalers={'method':'minmax'})
-        else:
-            df.loc[:, numeric], _ = scaling(df.loc[:, numeric], scalers=model_config['scalers'])
-        print('Scaling done')
-    else:
-        print('Nothing to scale')
-    #print(df.columns)
-    '''
-
-    
-    #df = pd.concat([df_numeric, df_binary_categorical, df_other], axis=1)
     
     # filtering columns
     if datatype == 'train':
         model_config['used_columns'] = df.columns
     
     print('Used {} columns'.format(len(df.columns)))
+    
+    if datatype == 'train':
+        model_config['dtype'] = {}
+        for col_name in df.columns:
+            if not col_name.startswith('number_datetime'):
+                model_config['usecols'].append(col_name)
+                model_config['dtype'][col_name] = df[col_name].dtype
     
 
     return df, y, model_config, line_id
